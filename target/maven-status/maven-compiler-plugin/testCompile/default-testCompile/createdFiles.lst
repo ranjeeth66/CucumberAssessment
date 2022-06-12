@@ -1,0 +1,6 @@
+objectRepositories\TGNewsPageObjects.class
+supportLibraries\Utility.class
+stepDefinitions\Steps.class
+supportLibraries\Log4jProperties.class
+TestRunner\Runner.class
+supportLibraries\BaseClass.class
