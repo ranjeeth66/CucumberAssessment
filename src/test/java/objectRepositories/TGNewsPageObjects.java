@@ -1,7 +1,6 @@
 package objectRepositories;
 
 import org.apache.log4j.Logger;
-import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -13,6 +12,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import supportLibraries.BaseClass;
 import supportLibraries.Log4jProperties;
 import supportLibraries.Utility;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -45,13 +45,13 @@ public class TGNewsPageObjects{
 	@FindBy(xpath = "//div[@data-gu-name='headline']//h1")
 	public WebElement lnk_NewsHeader;
 
-	By lst_SearchValues= By.xpath("(//div[@id='search']//a/../../..//*[contains(@style,'webkit-line')]//span[2])[1]/em");
-	By lst_SearchValues1= By.xpath("(//div[@id='search']//a/../../..//*[contains(@style,'webkit-line')]//span[2])[2]/em");
+	@FindBy(xpath = "//div[@id ='rso']/div/following::div[contains(@class,'tF2Cxc')]")
+	private List<WebElement> searchResultsData;
 
 	By verify_SearchResults = By.xpath("//div[@id='search']//a");
 
 	/********This Method is used to launch browser with url  ****/
-	public void openBrowser() throws Exception{
+	public void openBrowser(){
 		String url = Utility.getPropertiesFromConfig("ApplicationUrl");
 		driver.get(url);
 		driver.manage().window().maximize();
@@ -60,9 +60,8 @@ public class TGNewsPageObjects{
 
 	/********This Method is used to get the page title
 	 * @return strPageTitle***/
-	public String validateTGNewsPage() throws InterruptedException {
-		String strPageTitle = driver.getTitle();
-		return strPageTitle;
+	public String validateTGNewsPage(){
+		return driver.getTitle();
 	}
 
 	/********This Method is used verify guardian new page is launched
@@ -75,16 +74,15 @@ public class TGNewsPageObjects{
 	}
 	/********This Method is used to retrieve data for the first post from news page
 	 * @return strFirstNewsPost*****/
-	public String retrieveFirstNewsData() throws InterruptedException{
-		 Thread.sleep(3000);
+	public String retrieveFirstNewsData(){
 		 Utility.clickOnElement(lnk_FirstNewsPost);
 		 strFirstNewsPost = Utility.retrieveGetText(lnk_NewsHeader);
 		 logger.info("first post news data is successfully retrieved");
 		 return strFirstNewsPost;
 	}
-	/********This Method is used to launch google page and enter the retrieved search result
-	 * @return *****/
-	public List<WebElement> getDataFromGooglePage() throws InterruptedException {
+	/********This Method is used to launch google page and enter the retrieved search result & Captures the search result to list
+	 * @return lstAllResults *****/
+	public List<String> getDataFromGooglePage(){
 		String url = Utility.getPropertiesFromConfig("GoogleUrl");
 		driver.get(url);
 		driver.manage().window().maximize();
@@ -93,27 +91,51 @@ public class TGNewsPageObjects{
 		WebDriverWait wait = new WebDriverWait(driver, Utility.PAGE_LOAD_TIMEOUT);
 		wait.until(ExpectedConditions.presenceOfElementLocated(verify_SearchResults));
 		List<WebElement> allLinks = driver.findElements(verify_SearchResults);
-		logger.info("All links found on web page are: " + allLinks.size() + " links");
-		for (WebElement link : allLinks) {
-			logger.info(link.getAttribute("href"));
-			logger.info(link.getText());
+		List<String> lstAllResults = new ArrayList<>();
+		for (WebElement webElement : searchResultsData) {
+			lstAllResults.add(webElement.getText());
 		}
-		return allLinks;
+		logger.info("Results Data:"+ lstAllResults);
+		return lstAllResults;
 	}
-	/********This Method is used to verify the retrieved search result is valid or not
-	 * @return *****/
-	public void validateNewsIsValid(List<WebElement> allLinks) {
-		String[] strLst = strFirstNewsPost.split(":");
-		for(int i=0;i<allLinks.size()-1;i++){
-			if(!allLinks.get(i).getText().contains("https://www.theguardian.com")){
-				String strActRes = allLinks.get(i).getText();
-				if(strActRes.contains(strLst[0])){
-					Assert.assertTrue("Data is valid",true);
-					break;
-				}else{
-					Assert.assertFalse("Data is InValid", false);
+	/*******This method will return true if at least one result exist in Google search results
+	* @return testResult ******/
+	public boolean verifyIfArticleIsPresent(List<String> searchResultsData, String firstArticleHeadline) {
+		boolean testResult = false;
+		int count = 0;
+		String[] strLstData = firstArticleHeadline.split("\\W+");
+		count = getCount(searchResultsData, strLstData, count);
+		if (count != 0) testResult = true;
+		return testResult;
+	}
+	/*******This has all the results from search engine as first parameter and retrieved text from news page as second parameter.
+	 This method returns true if the news is valid and false if the news is not valid
+	 * @return testResult ******/
+	public boolean validateNewsIsValid(List<String> searchResultsData, String strFNP) {
+		String[] strWordsFromArticle = strFNP.split("\\W+");
+		int count = 0;
+		boolean compareResult = false;
+		count = getCount(searchResultsData, strWordsFromArticle, count);
+		if (count == 0){
+			compareResult = false;
+		}else if (count > 0) {
+			count = count / searchResultsData.size();
+			if (count >= 5){
+				compareResult = true;
+			}
+		}
+		return compareResult;
+	}
+	/*******This method will return true if at least one result exist in Google search results
+	 * @return testResult ******/
+	private int getCount(List<String> allSearchResults, String[] strWordsFromArticle, int count) {
+		for (String allSearchResult : allSearchResults) {
+			for (String s : strWordsFromArticle) {
+				if (allSearchResult.contains(s)){
+					count++;
 				}
 			}
 		}
+		return count;
 	}
 }
